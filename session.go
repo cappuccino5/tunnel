@@ -2,6 +2,9 @@ package main
 
 import (
 	"dev.risinghf.com/go/framework/log"
+	"os"
+	"proxy/tunnel/config"
+	"proxy/tunnel/network"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -59,9 +62,8 @@ func (sess *Session) NewConnSession() *ConnSession {
 	sess.ActiveClose = false
 	sess.CloseChan = make(chan struct{})
 
-	// TODO
-	cSess.VPNAddress = "proxy.risinghf.com"
 	cSess.MTU = 1399
+	cSess.Hostname, _ = os.Hostname()
 	return cSess
 }
 
@@ -88,9 +90,9 @@ func (cSess *ConnSession) ReadDeadTimer() {
 func (cSess *ConnSession) Close() {
 	cSess.closeOnce.Do(func() {
 		close(cSess.CloseChan)
+		network.ResetRoutes(config.Prof.ServiceAddr(), Sess.CSess.DNS, []string{})
 		Sess.CSess = nil
 		Sess.Connected = false
-
 		close(Sess.CloseChan)
 	})
 }

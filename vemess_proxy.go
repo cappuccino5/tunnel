@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"dev.risinghf.com/go/framework/log"
 	"encoding/hex"
+	"io"
 	"net"
 	"time"
 )
@@ -32,13 +33,16 @@ func tlsVmessChannel(conn net.Conn, bufR *bufio.Reader, cSess *ConnSession) {
 		if conn != nil {
 			_ = conn.SetReadDeadline(time.Now().Add(dead))
 		}
-		//if cSess.ResetReadDead.Load().(bool) {
-		//	cSess.ResetReadDead.Store(false)
-		//}
+		if cSess.ResetReadDead.Load().(bool) {
+			cSess.ResetReadDead.Store(false)
+		}
 
 		pl := getPayloadBuffer()                // 从池子申请一块内存，存放去除头部的数据包到 PayloadIn，在 payloadInToTun 中释放
 		bytesReceived, err = bufR.Read(pl.Data) // 服务器没有数据返回时，会阻塞
 		if err != nil {
+			if err == io.EOF {
+				continue
+			}
 			log.Error("tls server to payloadIn error:", err)
 			return
 		}
@@ -56,7 +60,6 @@ func tlsVmessChannel(conn net.Conn, bufR *bufio.Reader, cSess *ConnSession) {
 func payloadOutTLSToServer(conn net.Conn, cSess *ConnSession) {
 	defer func() {
 		log.Info("tls payloadOut to server exit")
-		_ = conn.Close()
 		cSess.Close()
 	}()
 

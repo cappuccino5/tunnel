@@ -1,12 +1,16 @@
 package network
 
 import (
+	"dev.risinghf.com/go/framework/log"
 	"fmt"
 	"golang.org/x/sys/windows"
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
+	"net"
 	"net/netip"
 	"os/exec"
+	"proxy/tunnel/config"
 	"proxy/tunnel/tun"
+	"strings"
 )
 
 var (
@@ -66,90 +70,118 @@ func ConfigInterface(TunName, VPNAddress, VPNMask string, DNS []string) error {
 	return nil
 }
 
-//
-//func SetRoutes(ServerIP string, SplitInclude, SplitExclude *[]string) error {
-//	// routes
-//	dst, err := netip.ParsePrefix(ServerIP + "/32")
-//	nextHopVPNGateway, _ := netip.ParseAddr(base.LocalInterface.Gateway)
-//	err = localInterface.AddRoute(dst, nextHopVPNGateway, 1)
-//	if err != nil {
-//		return routingError(dst)
-//	}
-//
-//	// Windows 排除路由 metric 相对大小好像不起作用，但不影响效果
-//	if len(*SplitInclude) == 0 {
-//		*SplitInclude = append(*SplitInclude, "0.0.0.0/0.0.0.0")
-//	}
-//	for _, ipMask := range *SplitInclude {
-//		dst, _ = netip.ParsePrefix(IpMaskToCIDR(ipMask))
-//		err = iface.AddRoute(dst, nextHopVPN, 6)
+func GetLocalInterface() error {
+	ifcs, err := winipcfg.GetAdaptersAddresses(windows.AF_INET, winipcfg.GAAFlagIncludeGateways)
+	if err != nil {
+		return err
+	}
+
+	var primaryInterface *winipcfg.IPAdapterAddresses
+	for _, ifc := range ifcs {
+		log.Debug(ifc.AdapterName(), ifc.Description(), ifc.FriendlyName(), ifc.Ipv4Metric, ifc.IfType)
+		// exclude Virtual Ethernet and Loopback Adapter
+		if !strings.Contains(ifc.Description(), "Virtual") {
+			// https://git.zx2c4.com/wireguard-windows/tree/tunnel/winipcfg/types.go?h=v0.5.3#n61
+			if (ifc.IfType == 6 || ifc.IfType == 71) && ifc.FirstGatewayAddress != nil {
+				if primaryInterface == nil || (ifc.Ipv4Metric < primaryInterface.Ipv4Metric) {
+					primaryInterface = ifc
+				}
+			}
+		}
+	}
+
+	log.Info("GetLocalInterface: ", primaryInterface.AdapterName(), primaryInterface.Description(),
+		primaryInterface.FriendlyName(), primaryInterface.Ipv4Metric, primaryInterface.IfType)
+
+	config.LocalInterface.Name = primaryInterface.FriendlyName()
+	config.LocalInterface.Ip4 = primaryInterface.FirstUnicastAddress.Address.IP().String()
+	config.LocalInterface.Gateway = primaryInterface.FirstGatewayAddress.Address.IP().String()
+	config.LocalInterface.Mac = net.HardwareAddr(primaryInterface.PhysicalAddress()).String()
+
+	localInterface = primaryInterface.LUID
+
+	return nil
+}
+
+func SetRoutes(ServerIP string, SplitInclude, SplitExclude *[]string) error {
+	// routes
+	dst, err := netip.ParsePrefix(ServerIP + "/32")
+	nextHopVPNGateway, _ := netip.ParseAddr(config.LocalInterface.Gateway)
+	err = localInterface.AddRoute(dst, nextHopVPNGateway, 1)
+	if err != nil {
+		return routingError(dst)
+	}
+
+	// Windows 排除路由 metric 相对大小好像不起作用，但不影响效果
+	if len(*SplitInclude) == 0 {
+		*SplitInclude = append(*SplitInclude, "0.0.0.0/0.0.0.0")
+	}
+	for _, ipMask := range *SplitInclude {
+		dst, _ = netip.ParsePrefix(IpMaskToCIDR(ipMask))
+		err = iface.AddRoute(dst, nextHopVPN, 6)
+		if err != nil {
+			return routingError(dst)
+		}
+	}
+
+	if len(*SplitExclude) > 0 {
+		for _, ipMask := range *SplitExclude {
+			dst, _ = netip.ParsePrefix(IpMaskToCIDR(ipMask))
+			err = localInterface.AddRoute(dst, nextHopVPNGateway, 5)
+			if err != nil {
+				return routingError(dst)
+			}
+		}
+	}
+
+	return err
+}
+
+func ResetRoutes(ServerIP string, DNS, SplitExclude []string) {
+	dst, _ := netip.ParsePrefix(ServerIP + "/32")
+	nextHopVPNGateway, _ := netip.ParseAddr(config.LocalInterface.Gateway)
+	localInterface.DeleteRoute(dst, nextHopVPNGateway)
+
+	if len(SplitExclude) > 0 {
+		for _, ipMask := range SplitExclude {
+			dst, _ = netip.ParsePrefix(IpMaskToCIDR(ipMask))
+			localInterface.DeleteRoute(dst, nextHopVPNGateway)
+		}
+	}
+}
+
+//	func GetLocalInterface() error {
+//		ifcs, err := winipcfg.GetAdaptersAddresses(windows.AF_INET, winipcfg.GAAFlagIncludeGateways)
 //		if err != nil {
-//			return routingError(dst)
+//			return err
 //		}
-//	}
 //
-//	if len(*SplitExclude) > 0 {
-//		for _, ipMask := range *SplitExclude {
-//			dst, _ = netip.ParsePrefix(IpMaskToCIDR(ipMask))
-//			err = localInterface.AddRoute(dst, nextHopVPNGateway, 5)
-//			if err != nil {
-//				return routingError(dst)
-//			}
-//		}
-//	}
-//
-//	return err
-//}
-//
-//func ResetRoutes(ServerIP string, DNS, SplitExclude []string) {
-//	dst, _ := netip.ParsePrefix(ServerIP + "/32")
-//	nextHopVPNGateway, _ := netip.ParseAddr(base.LocalInterface.Gateway)
-//	localInterface.DeleteRoute(dst, nextHopVPNGateway)
-//
-//	if len(SplitExclude) > 0 {
-//		for _, ipMask := range SplitExclude {
-//			dst, _ = netip.ParsePrefix(IpMaskToCIDR(ipMask))
-//			localInterface.DeleteRoute(dst, nextHopVPNGateway)
-//		}
-//	}
-//}
-//
-//func GetLocalInterface() error {
-//	ifcs, err := winipcfg.GetAdaptersAddresses(windows.AF_INET, winipcfg.GAAFlagIncludeGateways)
-//	if err != nil {
-//		return err
-//	}
-//
-//	var primaryInterface *winipcfg.IPAdapterAddresses
-//	for _, ifc := range ifcs {
-//		base.Debug(ifc.AdapterName(), ifc.Description(), ifc.FriendlyName(), ifc.Ipv4Metric, ifc.IfType)
-//		// exclude Virtual Ethernet and Loopback Adapter
-//		if !strings.Contains(ifc.Description(), "Virtual") {
-//			// https://git.zx2c4.com/wireguard-windows/tree/tunnel/winipcfg/types.go?h=v0.5.3#n61
-//			if (ifc.IfType == 6 || ifc.IfType == 71) && ifc.FirstGatewayAddress != nil {
-//				if primaryInterface == nil || (ifc.Ipv4Metric < primaryInterface.Ipv4Metric) {
-//					primaryInterface = ifc
+//		var primaryInterface *winipcfg.IPAdapterAddresses
+//		for _, ifc := range ifcs {
+//			base.Debug(ifc.AdapterName(), ifc.Description(), ifc.FriendlyName(), ifc.Ipv4Metric, ifc.IfType)
+//			// exclude Virtual Ethernet and Loopback Adapter
+//			if !strings.Contains(ifc.Description(), "Virtual") {
+//				// https://git.zx2c4.com/wireguard-windows/tree/tunnel/winipcfg/types.go?h=v0.5.3#n61
+//				if (ifc.IfType == 6 || ifc.IfType == 71) && ifc.FirstGatewayAddress != nil {
+//					if primaryInterface == nil || (ifc.Ipv4Metric < primaryInterface.Ipv4Metric) {
+//						primaryInterface = ifc
+//					}
 //				}
 //			}
 //		}
+//
+//		base.Info("GetLocalInterface: ", primaryInterface.AdapterName(), primaryInterface.Description(),
+//			primaryInterface.FriendlyName(), primaryInterface.Ipv4Metric, primaryInterface.IfType)
+//
+//		base.LocalInterface.Name = primaryInterface.FriendlyName()
+//		base.LocalInterface.Ip4 = primaryInterface.FirstUnicastAddress.Address.IP().String()
+//		base.LocalInterface.Gateway = primaryInterface.FirstGatewayAddress.Address.IP().String()
+//		base.LocalInterface.Mac = net.HardwareAddr(primaryInterface.PhysicalAddress()).String()
+//
+//		localInterface = primaryInterface.LUID
+//
+//		return nil
 //	}
-//
-//	base.Info("GetLocalInterface: ", primaryInterface.AdapterName(), primaryInterface.Description(),
-//		primaryInterface.FriendlyName(), primaryInterface.Ipv4Metric, primaryInterface.IfType)
-//
-//	base.LocalInterface.Name = primaryInterface.FriendlyName()
-//	base.LocalInterface.Ip4 = primaryInterface.FirstUnicastAddress.Address.IP().String()
-//	base.LocalInterface.Gateway = primaryInterface.FirstGatewayAddress.Address.IP().String()
-//	base.LocalInterface.Mac = net.HardwareAddr(primaryInterface.PhysicalAddress()).String()
-//
-//	localInterface = primaryInterface.LUID
-//
-//	return nil
-//}
-//
-//
-//
-//func routingError(dst netip.Prefix) error {
-//	return fmt.Errorf("routing error: %s", dst.String())
-//}
-//
+func routingError(dst netip.Prefix) error {
+	return fmt.Errorf("routing error: %s", dst.String())
+}

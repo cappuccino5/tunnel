@@ -1,20 +1,20 @@
 package main
 
 import (
-	"bufio"
 	"dev.risinghf.com/go/framework/log"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
 	"net/netip"
 	"os"
 	"os/signal"
+	"proxy/tunnel/config"
 	"proxy/tunnel/network"
 	_ "proxy/tunnel/network/waterutil"
 	_ "proxy/tunnel/static"
 	"proxy/tunnel/tun"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -56,10 +56,17 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Infof("%s", *testRun)
-	err = SetupTunnel()
+	err = config.InitAuth2()
 	if err != nil {
 		log.Error(err)
+		return
 	}
+	err = Connect()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
 	time.Sleep(time.Second * 30)
 
 	quit := make(chan os.Signal)
@@ -70,65 +77,51 @@ func main() {
 		select {
 		case <-quit:
 			log.Info("exit main ")
+			return
 		}
 	}
 }
 
 func SetupTunnel() error {
-
-	// 1 发送 vmess 请求
-	//err := req.Write(auth.Conn)
-	//if err != nil {
-	//	auth.Conn.Close()
-	//	return err
-	//}
-	//var resp *http.Response
-	//// resp.Body closed when tlsChannel exit
-	//resp, err = http.ReadResponse(auth.BufR, req)
-	//if err != nil {
-	//	auth.Conn.Close()
-	//	return err
-	//}
-	//
-	//if resp.StatusCode != http.StatusOK {
-	//	auth.Conn.Close()
-	//	return fmt.Errorf("tunnel negotiation failed %s", resp.Status)
-	//}
-
-	//err = setupTun(cSess)
-	//if err != nil {
-	//	auth.Conn.Close()
-	//	cSess.Close()
-	//	return err
-	//}
-	//log.Info("tls channel negotiation succeeded")
-	//// 只有网卡设置成功才会进行下一步
-	//// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.4
-	//go tlsChannel(auth.Conn, auth.BufR, cSess, resp)
-	//if cSess.DTLSPort != "" {
-	//	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.5
-	//	go dtlsChannel(cSess)
-	//}
-	//cSess.DPDTimer()
-	//cSess.ReadDeadTimer()
-	//
-	//为了靠谱，不再异步设置，路由多的话可能要等等
-	//err = utils.SetRoutes(cSess.ServerAddress, &cSess.SplitInclude, &cSess.SplitExclude)
-	//if err != nil {
-	//	auth.Conn.Close()
-	//	cSess.Close()
-	//}
-
 	session := Sess.NewConnSession()
-	session.VPNAddress = "54.221.65.219:1443"
+	// TODO 本地网卡的地址和DNS 子网掩码配置
+	//session.VPNAddress = config.Prof.ServiceAddr()
+	session.VPNAddress = config.Prof.ServiceAddr()
+	session.ServerAddress = config.Prof.ServiceAddr()
+	session.LocalAddress = config.LocalInterface.Ip4
+	session.DNS = []string{"114.114.114.114", "8.8.8.8"}
+	session.VPNMask = "255.255.254.0"
+	session.TunName = "rxhf proxy"
+
+	sessb, _ := json.Marshal(session)
+	log.Info("sess:", string(sessb))
 	err := setupTun(session)
 	if err != nil {
 		return err
 	}
-	reader := bufio.NewReader(strings.NewReader("hello \n world"))
 
-	tlsVmessChannel(nil, reader, session)
+	go tlsVmessChannel(config.Conn, config.BufR, session)
+	session.ReadDeadTimer()
+	err = network.SetRoutes(session.ServerAddress, &[]string{}, &[]string{})
+	if err != nil {
+		config.Conn.Close()
+		session.Close()
+		return err
+	}
+
 	return nil
+}
+
+// Connect 调用之前必须由前端填充 auth.Prof，建议填充 base.Interface
+func Connect() error {
+	// 为适应复杂网络环境，必须能够感知网卡变化，建议由前端获取当前网络信息发送过来，而不是登陆前由 Go 处理
+	if !config.Prof.Initialized {
+		err := network.GetLocalInterface()
+		if err != nil {
+			return err
+		}
+	}
+	return SetupTunnel()
 }
 
 func setupTun(cSess *ConnSession) error {
@@ -148,7 +141,25 @@ func setupTun(cSess *ConnSession) error {
 	log.Info("tun device:", cSess.TunName)
 	tun.NativeTunDevice = dev.(*tun.NativeTun)
 
-	// 不可并行
+	/****/
+
+	//nativeTunDevice := dev.(*tun.NativeTun)
+
+	// 获取LUID用于配置网络
+	//link := winipcfg.LUID(nativeTunDevice.LUID())
+	//
+	//ip, err := netip.ParsePrefix("10.0.0.77/24")
+	//if err != nil {
+	//	log.Error("ParsePrefix:", err)
+	//	return err
+	//}
+	//err = link.SetIPAddresses([]netip.Prefix{ip})
+	//if err != nil {
+	//	log.Error("SetIPAddresses err", err)
+	//	return err
+	//}
+	//********/
+	//不可并行
 	err = network.ConfigInterface(cSess.TunName, cSess.VPNAddress, cSess.VPNMask, cSess.DNS)
 	if err != nil {
 		_ = dev.Close()
