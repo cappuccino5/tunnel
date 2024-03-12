@@ -1,7 +1,9 @@
 package network
 
 import (
+	"crypto/rand"
 	"fmt"
+	"github.com/pion/dtls/v2/pkg/protocol"
 	"net"
 	"os"
 	"strings"
@@ -26,6 +28,14 @@ func IpMaskToCIDR(ipMask string) string {
 	ips := strings.Split(ipMask, "/")
 	length, _ := net.IPMask(net.ParseIP(ips[1]).To4()).Size()
 	return fmt.Sprintf("%s/%v", ips[0], length)
+}
+
+func MakeMasterSecret() ([]byte, error) {
+	masterSecret := make([]byte, 48)
+	masterSecret[0] = protocol.Version1_2.Major
+	masterSecret[1] = protocol.Version1_2.Minor
+	_, err := rand.Read(masterSecret[2:])
+	return masterSecret, err
 }
 
 func Min(init int, other ...int) int {
@@ -53,7 +63,7 @@ func CopyFile(dstName, srcName string) (err error) {
 	if err != nil {
 		return err
 	}
-
+	
 	err = os.WriteFile(dstName, input, 0644)
 	if err != nil {
 		return err

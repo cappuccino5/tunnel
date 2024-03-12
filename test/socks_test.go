@@ -33,12 +33,12 @@ func TestShadowsocks(t *testing.T) {
 	tcpClient, err := transport.NewClient(ctx, nil)
 	common.Must(err)
 	cfg := &shadowsocks.Config{
-		RemoteHost: "43.200.171.207",
+		RemoteHost: "41.1.1.7",
 		RemotePort: int(28388),
 		Shadowsocks: shadowsocks.ShadowsocksConfig{
 			Enabled:  true,
 			Method:   "AES-128-GCM",
-			Password: "RtajC@14mF&Km",
+			Password: "123456",
 		},
 	}
 	ctx = config.WithConfig(ctx, shadowsocks.Name, cfg)

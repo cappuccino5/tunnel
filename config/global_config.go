@@ -2,35 +2,56 @@ package config
 
 import (
 	"bufio"
-	"context"
-	"dev.risinghf.com/go/framework/log"
-	"github.com/kelleygo/trojan-go/config"
-	"github.com/kelleygo/trojan-go/tunnel/freedom"
-	"github.com/kelleygo/trojan-go/tunnel/shadowsocks"
-	"github.com/kelleygo/trojan-go/tunnel/transport"
 	"net"
+	"net/http"
+	"proxy/tunnel/models"
 )
 
 var (
+	Cfg            = &ClientConfig{}
 	LocalInterface = &Interface{}
-	Prof           = &Profile{Initialized: false}
-	Conn           net.Conn
-	// Conn2        net.Conn
-	// Conn3        net.Conn
+)
+
+type ClientConfig struct {
+	LogLevel           string `json:"log_level"`
+	LogPath            string `json:"log_path"`
+	InsecureSkipVerify bool   `json:"skip_verify"`
+	CiscoCompat        bool   `json:"cisco_compat"`
+	AgentName          string `json:"agent_name"`
+	AgentVersion       string `json:"agent_version"`
+}
+
+func initCfg() {
+	Cfg.LogLevel = "Info"
+	Cfg.LogPath = "./logs"
+	Cfg.InsecureSkipVerify = true
+	Cfg.CiscoCompat = true
+	Cfg.AgentName = "edge vpn Client"
+	Cfg.AgentVersion = "0.2.0.6"
+}
+
+// auth 里初始化
+var (
+	Prof = &Profile{Initialized: false}
+	Conn net.Conn
 	BufR *bufio.Reader
-	// BufR2        *bufio.Reader
-	// BufR3        *bufio.Reader
-	reqHeaders   = make(map[string]string)
-	WebVpnCookie string
 )
 
 // Profile 模板变量字段必须导出，虽然全局，但每次连接都被重置
 type Profile struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Host       string `json:"host"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Group      string `json:"group"`
+	MacAddress string
 	
+	HostWithPort string
+	Scheme       string
+	AuthPath     string
+	
+	User        models.User
+	HeaderParam http.Header
+	AppVersion  string // for report to server in xml
 	Initialized bool
 }
 
@@ -40,69 +61,4 @@ type Interface struct {
 	Ip4     string `json:"ip4"`
 	Mac     string `json:"mac"`
 	Gateway string `json:"gateway"`
-}
-
-func (this *Profile) ServiceAddr() string {
-	ips, err := net.LookupIP(this.Host)
-	if err != nil {
-		log.Error(err)
-		return ""
-	}
-	var addr string
-	for _, ip := range ips {
-		addr = ip.String()
-		break
-	}
-	return addr
-}
-
-func InitAuth2() error {
-	host := "43.200.171.207"
-	port := 28388
-	Prof.Host = host
-	Prof.Port = port
-	
-	//tlsConfig := &xtls.Config{
-	//	TLS: xtls.TLSConfig{
-	//		Verify:      false,
-	//		SNI:         host,
-	//		Fingerprint: "",
-	//	},
-	//}
-	transportConfig := &transport.Config{
-		RemoteHost: host,
-		RemotePort: port,
-	}
-	shadowsocksConfig := &shadowsocks.Config{
-		RemoteHost: host,
-		RemotePort: port,
-		Shadowsocks: shadowsocks.ShadowsocksConfig{
-			Enabled:  true,
-			Method:   "AES-128-GCM",
-			Password: "RtajC@14mF&Km",
-		},
-	}
-	
-	ctx := config.WithConfig(context.Background(), transport.Name, transportConfig)
-	//ctx = config.WithConfig(ctx, xtls.Name, tlsConfig)
-	ctx = config.WithConfig(ctx, freedom.Name, &freedom.Config{})
-	tcpClient, err := transport.NewClient(ctx, nil)
-	if err != nil {
-		return err
-	}
-	//tlsClient, err := xtls.NewClient(ctx, tcpClient)
-	//if err != nil {
-	//	return err
-	//}
-	ctx = config.WithConfig(ctx, shadowsocks.Name, shadowsocksConfig)
-	ssClient, err := shadowsocks.NewClient(ctx, tcpClient)
-	if err != nil {
-		return err
-	}
-	Conn, err = ssClient.DialConn(nil, nil)
-	if err != nil {
-		return err
-	}
-	BufR = bufio.NewReader(Conn)
-	return nil
 }
