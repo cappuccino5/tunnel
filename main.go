@@ -37,6 +37,7 @@ func main() {
 	}
 	
 	log.WithFields(config.Prof).Info("config init")
+	
 	err := api.Connect()
 	if err != nil {
 		log.Error(err)
