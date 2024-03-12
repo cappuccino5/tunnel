@@ -21,9 +21,9 @@ type ClientConfig struct {
 	AgentVersion       string `json:"agent_version"`
 }
 
-func initCfg() {
-	Cfg.LogLevel = "Info"
-	Cfg.LogPath = "./logs"
+func init() {
+	//Cfg.LogLevel = "Info"
+	//Cfg.LogPath = "./logs"
 	Cfg.InsecureSkipVerify = true
 	Cfg.CiscoCompat = true
 	Cfg.AgentName = "edge vpn Client"

@@ -6,7 +6,6 @@ import (
 	"context"
 	"dev.risinghf.com/go/framework/errors"
 	"dev.risinghf.com/go/framework/log"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"github.com/kelleygo/trojan-go/config"
@@ -26,7 +25,6 @@ import (
 )
 
 var (
-	reqHeaders   = make(map[string]string)
 	WebVpnCookie string
 )
 
@@ -34,13 +32,6 @@ const (
 	tplInit = iota
 	tplAuthReply
 )
-
-func init() {
-	reqHeaders["X-Transcend-Version"] = "1"
-	reqHeaders["X-Aggregate-Auth"] = "1"
-	
-	conf.Prof.Scheme = "https://"
-}
 
 // InitAuth 确定用户组和服务端认证地址 AuthPath
 func InitAuth2() error {
@@ -95,11 +86,14 @@ func InitAuth2() error {
 	dtd := models.DTD{}
 	err = tplPost(tplInit, "", &dtd)
 	if err != nil {
+		log.Error("auth tplInit err ", err)
 		return err
 	}
+	
 	conf.Prof.AuthPath = dtd.Auth.Form.Action
 	conf.Prof.MacAddress = conf.LocalInterface.Mac
 	conf.Prof.AppVersion = conf.Cfg.AgentVersion
+	
 	gc := len(dtd.Auth.Form.Groups)
 	if gc == 1 {
 		// 适用于 group 参数为空，但服务端有唯一用户组的情况，重写 Prof.Group
@@ -157,17 +151,13 @@ func tplPost(typ int, path string, dtd *models.DTD) error {
 		t, _ := template.New("auth_reply").Parse(templateAuthReply)
 		_ = t.Execute(&tplBuffer, conf.Prof)
 	}
-	
+	log.Info("tplPost url:", conf.Prof.Scheme+conf.Prof.HostWithPort+path)
 	req, err := http.NewRequest("POST", conf.Prof.Scheme+conf.Prof.HostWithPort+path, &tplBuffer)
 	if err != nil {
-		b, _ := json.Marshal(tplBuffer)
-		log.WithFields(log.Fields{"url": conf.Prof.Scheme + conf.Prof.HostWithPort + path, "body": string(b)}).Error(err)
+		log.WithFields(log.Fields{"url": conf.Prof.Scheme + conf.Prof.HostWithPort + path, "body": tplBuffer.String()}).Error(err)
 		return err
 	}
 	req.Header = conf.Prof.HeaderParam
-	for k, v := range reqHeaders {
-		req.Header[k] = []string{v}
-	}
 	
 	err = req.Write(conf.Conn)
 	if err != nil {
@@ -182,14 +172,13 @@ func tplPost(typ int, path string, dtd *models.DTD) error {
 		return err
 	}
 	defer resp.Body.Close()
-	
 	if resp.StatusCode == http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			conf.Conn.Close()
 			return err
 		}
-		if conf.Cfg.LogLevel == "Debug" {
+		if log.GetLogLevel() == "debug" {
 			log.Debug(string(body))
 		}
 		err = xml.Unmarshal(body, dtd)
