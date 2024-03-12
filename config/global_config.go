@@ -7,7 +7,6 @@ import (
 	"github.com/kelleygo/trojan-go/config"
 	"github.com/kelleygo/trojan-go/tunnel/freedom"
 	"github.com/kelleygo/trojan-go/tunnel/shadowsocks"
-	xtls "github.com/kelleygo/trojan-go/tunnel/tls"
 	"github.com/kelleygo/trojan-go/tunnel/transport"
 	"net"
 )
@@ -31,7 +30,7 @@ type Profile struct {
 	Port     int    `json:"port"`
 	Username string `json:"username"`
 	Password string `json:"password"`
-
+	
 	Initialized bool
 }
 
@@ -62,14 +61,14 @@ func InitAuth2() error {
 	port := 28388
 	Prof.Host = host
 	Prof.Port = port
-
-	tlsConfig := &xtls.Config{
-		TLS: xtls.TLSConfig{
-			Verify:      false,
-			SNI:         host,
-			Fingerprint: "",
-		},
-	}
+	
+	//tlsConfig := &xtls.Config{
+	//	TLS: xtls.TLSConfig{
+	//		Verify:      false,
+	//		SNI:         host,
+	//		Fingerprint: "",
+	//	},
+	//}
 	transportConfig := &transport.Config{
 		RemoteHost: host,
 		RemotePort: port,
@@ -83,10 +82,9 @@ func InitAuth2() error {
 			Password: "RtajC@14mF&Km",
 		},
 	}
-
+	
 	ctx := config.WithConfig(context.Background(), transport.Name, transportConfig)
-	ctx = config.WithConfig(ctx, xtls.Name, tlsConfig)
-	ctx = config.WithConfig(ctx, shadowsocks.Name, shadowsocksConfig)
+	//ctx = config.WithConfig(ctx, xtls.Name, tlsConfig)
 	ctx = config.WithConfig(ctx, freedom.Name, &freedom.Config{})
 	tcpClient, err := transport.NewClient(ctx, nil)
 	if err != nil {
@@ -96,6 +94,7 @@ func InitAuth2() error {
 	//if err != nil {
 	//	return err
 	//}
+	ctx = config.WithConfig(ctx, shadowsocks.Name, shadowsocksConfig)
 	ssClient, err := shadowsocks.NewClient(ctx, tcpClient)
 	if err != nil {
 		return err
