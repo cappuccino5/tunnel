@@ -92,6 +92,7 @@ func (sess *Session) NewConnSession(header *http.Header) *ConnSession {
 	sess.CloseChan = make(chan struct{})
 	
 	cSess.VPNAddress = header.Get("X-CSTP-Address")
+	//cSess.VPNAddress = "0.0.0.0"
 	cSess.VPNMask = header.Get("X-CSTP-Netmask")
 	//cSess.VPNMask = "255.255.254.0"
 	cSess.MTU, _ = strconv.Atoi(header.Get("X-CSTP-MTU"))

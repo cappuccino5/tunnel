@@ -15,7 +15,9 @@ func setupTun(cSess *session.ConnSession) error {
 		cSess.TunName = "Egde VPN"
 	} else {
 		cSess.TunName = "egde-proxy"
+		//return LinkTun(cSess)
 	}
+	// write to apps
 	dev, err := tun.CreateTUN(cSess.TunName, cSess.MTU)
 	if err != nil {
 		log.Error("failed to creates a new tun interface")
@@ -32,7 +34,7 @@ func setupTun(cSess *session.ConnSession) error {
 	}
 	
 	go tunToPayloadOut(dev, cSess) // read from apps
-	go payloadInToTun(dev, cSess)  // write to apps
+	go payloadInToTun(dev, cSess)
 	return nil
 }
 

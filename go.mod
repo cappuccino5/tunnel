@@ -7,6 +7,7 @@ require (
 	dev.risinghf.com/go/framework/log v1.1.2
 	github.com/kelleygo/trojan-go v1.5.6
 	github.com/pion/dtls/v2 v2.2.10
+	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20230316163032-ced5aaba43e3
 	golang.org/x/net v0.22.0
 	golang.org/x/sys v0.18.0

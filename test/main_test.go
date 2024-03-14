@@ -35,3 +35,9 @@ func TestTun(t *testing.T) {
 	//})
 	time.Sleep(time.Second * 30)
 }
+
+func TestNameV2(t *testing.T) {
+	ServerIP := "54.198.47.122"
+	dst, err := netip.ParsePrefix(ServerIP + "/32")
+	t.Log(dst, err)
+}

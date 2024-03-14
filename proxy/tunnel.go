@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"dev.risinghf.com/go/framework/log"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -99,13 +100,15 @@ func SetupTunnel() error {
 	cSess.Hostname = config.Prof.Host
 	// cSess.TLSCipherSuite = tls.CipherSuiteName(auth.Conn.ConnectionState().CipherSuite)
 	
+	tempB, _ := json.Marshal(cSess)
+	log.Info("----------> session:", string(tempB))
+	
 	err = setupTun(cSess)
 	if err != nil {
 		config.Conn.Close()
 		cSess.Close()
 		return err
 	}
-	log.Info("tls channel negotiation succeeded")
 	
 	cSess.DPDTimer()
 	cSess.ReadDeadTimer()
@@ -117,6 +120,8 @@ func SetupTunnel() error {
 		cSess.Close()
 		return err
 	}
+	
+	log.Info("tls channel negotiation succeeded")
 	// 只有网卡和路由设置成功才会进行下一步
 	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.4
 	go tlsChannel(config.Conn, config.BufR, cSess, resp)
