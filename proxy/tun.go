@@ -13,7 +13,7 @@ func setupTun(cSess *session.ConnSession) error {
 	if runtime.GOOS == "windows" {
 		cSess.TunName = "Egde VPN"
 	} else {
-		cSess.TunName = "egde VPN"
+		cSess.TunName = "egde-proxy"
 	}
 	dev, err := tun.CreateTUN(cSess.TunName, cSess.MTU)
 	if err != nil {
@@ -58,7 +58,7 @@ func tunToPayloadOut(dev tun.Device, cSess *session.ConnSession) {
 			log.Error("tun to payloadOut error:", err)
 			return
 		}
-		
+		log.Info("------------------>tunToPayloadOut size:", n)
 		// 更新数据长度
 		pl.Data = (pl.Data)[:n]
 		

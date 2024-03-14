@@ -105,13 +105,7 @@ func SetupTunnel() error {
 		return err
 	}
 	log.Info("tls channel negotiation succeeded")
-	// 只有网卡设置成功才会进行下一步
-	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.4
-	go tlsChannel(config.Conn, config.BufR, cSess, resp)
-	if cSess.DTLSPort != "" {
-		// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.5
-		//go dtlsChannel(cSess)
-	}
+	
 	cSess.DPDTimer()
 	cSess.ReadDeadTimer()
 	
@@ -120,8 +114,15 @@ func SetupTunnel() error {
 	if err != nil {
 		config.Conn.Close()
 		cSess.Close()
+		return err
 	}
-	
+	// 只有网卡和路由设置成功才会进行下一步
+	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.4
+	go tlsChannel(config.Conn, config.BufR, cSess, resp)
+	if cSess.DTLSPort != "" {
+		// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.5
+		//go dtlsChannel(cSess)
+	}
 	return err
 }
 
