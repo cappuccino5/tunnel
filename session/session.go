@@ -93,6 +93,7 @@ func (sess *Session) NewConnSession(header *http.Header) *ConnSession {
 	
 	cSess.VPNAddress = header.Get("X-CSTP-Address")
 	cSess.VPNMask = header.Get("X-CSTP-Netmask")
+	//cSess.VPNMask = "255.255.254.0"
 	cSess.MTU, _ = strconv.Atoi(header.Get("X-CSTP-MTU"))
 	cSess.DNS = header.Values("X-CSTP-DNS")
 	cSess.SplitInclude = header.Values("X-CSTP-Split-Include")

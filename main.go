@@ -43,14 +43,7 @@ func main() {
 		log.Error(err)
 		return
 	}
-	
-	//flagSet := flag.NewFlagSet("project-start", flag.ExitOnError)
-	//testRun := flagSet.String("test", "", "测试代理链路是否正常")
-	//// 打印
-	//err := flagSet.Parse(os.Args[1:])
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
+	defer api.DisConnect()
 	
 	quit := make(chan os.Signal)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -63,4 +56,12 @@ func main() {
 			return
 		}
 	}
+	
+	//flagSet := flag.NewFlagSet("project-start", flag.ExitOnError)
+	//testRun := flagSet.String("test", "", "测试代理链路是否正常")
+	//// 打印
+	//err := flagSet.Parse(os.Args[1:])
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 }

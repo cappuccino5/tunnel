@@ -2,6 +2,7 @@ package vpn
 
 import (
 	"dev.risinghf.com/go/framework/log"
+	"encoding/hex"
 	proto "proxy/tunnel/models"
 	"proxy/tunnel/network"
 	"proxy/tunnel/session"
@@ -110,7 +111,9 @@ func payloadInToTun(dev tun.Device, cSess *session.ConnSession) {
 			return
 		}
 		
-		// base.Debug("payloadInToTun")
+		var tempData []byte = make([]byte, len(pl.Data))
+		copy(tempData, pl.Data)
+		log.Debug(pl.PType, "---------> payloadInToTun", hex.EncodeToString(tempData))
 		
 		// 释放由 serverToPayloadIn 申请的内存
 		proto.PutPayloadBuffer(pl)

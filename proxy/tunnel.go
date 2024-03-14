@@ -94,6 +94,7 @@ func SetupTunnel() error {
 	}
 	
 	cSess := session.Sess.NewConnSession(&resp.Header)
+	session.Sess.CSess = cSess
 	cSess.ServerAddress = strings.Split(config.Conn.RemoteAddr().String(), ":")[0]
 	cSess.Hostname = config.Prof.Host
 	// cSess.TLSCipherSuite = tls.CipherSuiteName(auth.Conn.ConnectionState().CipherSuite)

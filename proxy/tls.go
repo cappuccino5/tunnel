@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"dev.risinghf.com/go/framework/log"
 	"encoding/binary"
+	"encoding/hex"
 	"net"
 	"net/http"
 	proto "proxy/tunnel/models"
@@ -101,6 +102,10 @@ func payloadOutTLSToServer(conn net.Conn, cSess *session.ConnSession) {
 		case <-cSess.CloseChan:
 			return
 		}
+		
+		var tempData = make([]byte, len(pl.Data))
+		copy(tempData, pl.Data)
+		log.Debug(pl.PType, "---------> payloadOutTLSToServer", hex.EncodeToString(tempData))
 		
 		// base.Debug("tls payloadOut to server", "PType", pl.PType)
 		if pl.PType == 0x00 {
