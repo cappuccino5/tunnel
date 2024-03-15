@@ -99,7 +99,7 @@ func SetupTunnel() error {
 	// cSess.TLSCipherSuite = tls.CipherSuiteName(auth.Conn.ConnectionState().CipherSuite)
 	
 	tempB, _ := json.Marshal(cSess)
-	log.Info("----------> session:", string(tempB))
+	log.Info("----------> session SplitInclude:", len(cSess.SplitInclude), " ", cSess.SplitInclude, " len(SplitExclude):", len(cSess.SplitExclude), " session ", string(tempB))
 	
 	err = setupTun(cSess)
 	if err != nil {
@@ -110,6 +110,13 @@ func SetupTunnel() error {
 	
 	cSess.DPDTimer()
 	cSess.ReadDeadTimer()
+	// 只有网卡和路由设置成功才会进行下一步
+	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.4
+	go tlsChannel(config.Conn, config.BufR, cSess, resp)
+	if cSess.DTLSPort != "" {
+		// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.5
+		//go dtlsChannel(cSess)
+	}
 	
 	// 为了靠谱，不再异步设置，路由多的话可能要等等
 	err = network.SetRoutes(cSess.ServerAddress, &cSess.SplitInclude, &cSess.SplitExclude)
@@ -118,15 +125,7 @@ func SetupTunnel() error {
 		cSess.Close()
 		return err
 	}
-	
 	log.Info("tls channel negotiation succeeded")
-	// 只有网卡和路由设置成功才会进行下一步
-	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.4
-	go tlsChannel(config.Conn, config.BufR, cSess, resp)
-	if cSess.DTLSPort != "" {
-		// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.5
-		//go dtlsChannel(cSess)
-	}
 	return err
 }
 

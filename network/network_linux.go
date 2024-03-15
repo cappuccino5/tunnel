@@ -1,6 +1,7 @@
 package network
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/kelleygo/trojan-go/log"
 	"github.com/vishvananda/netlink"
@@ -21,10 +22,14 @@ func ConfigInterface(TunName, VPNAddress, VPNMask string, DNS []string) error {
 		return err
 	}
 	// ip address
+	
 	_ = netlink.LinkSetUp(iface)
 	_ = netlink.LinkSetMulticastOff(iface)
 	
 	addr, _ := netlink.ParseAddr(IpMask2CIDR(VPNAddress, VPNMask))
+	
+	ifaceB, _ := json.Marshal(iface.Attrs())
+	log.Info("ConfigInterface:", addr, " iface ", string(ifaceB))
 	err = netlink.AddrAdd(iface, addr)
 	if err != nil {
 		return err
@@ -44,16 +49,46 @@ func ConfigInterface(TunName, VPNAddress, VPNMask string, DNS []string) error {
 	return err
 }
 
-func SetRoutes(ServerIP string, SplitInclude, SplitExclude *[]string) error {
-	// routes
-	dst, _ := netlink.ParseIPNet(ServerIP + "/32")
-	gateway := net.ParseIP(config.LocalInterface.Gateway)
-	
-	ifaceIndex := iface.Attrs().Index
+// linux设置路由的时候需要删除默认的路由，因为网络默认只能走一条路由规则
+func delDefaultRoutes() error {
 	localInterfaceIndex := localInterface.Attrs().Index
-	
+	dst, _ := netlink.ParseIPNet(IpMaskToCIDR("0.0.0.0/0.0.0.0"))
+	gateway := net.ParseIP(config.LocalInterface.Gateway)
+	route := netlink.Route{LinkIndex: localInterfaceIndex, Dst: dst, Gw: gateway}
+	err := netlink.RouteDel(&route)
+	if err != nil {
+		log.Error("delete default route fail", err)
+		return routingError(dst)
+	}
+	return nil
+}
+
+// 程序退出时需要恢复默认网络路由，否则与原来默认路由无法通信
+func addDefaultRoutes() error {
+	localInterfaceIndex := localInterface.Attrs().Index
+	dst, _ := netlink.ParseIPNet(IpMaskToCIDR("0.0.0.0/0.0.0.0"))
+	gateway := net.ParseIP(config.LocalInterface.Gateway)
 	route := netlink.Route{LinkIndex: localInterfaceIndex, Dst: dst, Gw: gateway}
 	err := netlink.RouteAdd(&route)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SetRoutes(ServerIP string, SplitInclude, SplitExclude *[]string) error {
+	err := delDefaultRoutes()
+	if err != nil {
+		return fmt.Errorf("delDefaultRoutes error: ", err.Error())
+	}
+	//set new routes
+	localInterfaceIndex := localInterface.Attrs().Index
+	dst, _ := netlink.ParseIPNet(ServerIP + "/32")
+	gateway := net.ParseIP(config.LocalInterface.Gateway)
+	ifaceIndex := iface.Attrs().Index
+	
+	route := netlink.Route{LinkIndex: localInterfaceIndex, Dst: dst, Gw: gateway}
+	err = netlink.RouteAdd(&route)
 	if err != nil {
 		return routingError(dst)
 	}
@@ -89,15 +124,21 @@ func ResetRoutes(ServerIP string, DNS, SplitExclude []string) {
 	// routes
 	localInterfaceIndex := localInterface.Attrs().Index
 	dst, _ := netlink.ParseIPNet(ServerIP + "/32")
+	log.Info("ResetRoutes DEL------------>", localInterfaceIndex, "  ", dst)
 	_ = netlink.RouteDel(&netlink.Route{LinkIndex: localInterfaceIndex, Dst: dst})
 	
 	if len(SplitExclude) > 0 {
 		for _, ipMask := range SplitExclude {
 			dst, _ = netlink.ParseIPNet(IpMaskToCIDR(ipMask))
+			log.Info("ResetRoutes DEL------------>", localInterfaceIndex, "  ", dst)
 			_ = netlink.RouteDel(&netlink.Route{LinkIndex: localInterfaceIndex, Dst: dst})
 		}
 	}
-	
+	log.Info("ResetRoutes", localInterface.Attrs().Name, config.LocalInterface.Gateway, config.LocalInterface.Ip4)
+	err := addDefaultRoutes()
+	if err != nil {
+		log.Error("ResetDefaultRoutes failed", err)
+	}
 	// dns
 	if len(DNS) > 0 {
 		CopyFile("/etc/resolv.conf", "/tmp/resolv.conf.bak")
