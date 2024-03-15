@@ -2,9 +2,9 @@ package vpn
 
 import (
 	"bufio"
-	"dev.risinghf.com/go/framework/log"
 	"encoding/binary"
 	"encoding/hex"
+	"github.com/kelleygo/trojan-go/log"
 	"net"
 	"net/http"
 	proto "proxy/tunnel/models"

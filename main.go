@@ -1,7 +1,9 @@
 package main
 
 import (
-	"dev.risinghf.com/go/framework/log"
+	"encoding/json"
+	"github.com/kelleygo/trojan-go/log"
+	_ "github.com/kelleygo/trojan-go/log/simplelog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,8 +17,7 @@ import (
 )
 
 func main() {
-	log.SetLogLevel("debug")
-	
+	log.SetLogLevel(int(log.AllLevel))
 	config.Prof = &config.Profile{
 		Host:        "54.198.47.122:443",
 		Username:    "rhf2s027l",
@@ -36,7 +37,8 @@ func main() {
 		config.Prof.HeaderParam["User-Agent"] = []string{config.Cfg.AgentName + " " + runtime.GOOS + " " + config.Cfg.AgentVersion}
 	}
 	
-	log.WithFields(config.Prof).Info("config init")
+	conf_json, _ := json.Marshal(config.Prof)
+	log.Info("config init", string(conf_json))
 	
 	err := api.Connect()
 	if err != nil {

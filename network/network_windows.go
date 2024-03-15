@@ -1,8 +1,8 @@
 package network
 
 import (
-	"dev.risinghf.com/go/framework/log"
 	"fmt"
+	"github.com/kelleygo/trojan-go/log"
 	"golang.org/x/sys/windows"
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
 	"net"

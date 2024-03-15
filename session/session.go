@@ -1,7 +1,7 @@
 package session
 
 import (
-	"dev.risinghf.com/go/framework/log"
+	"github.com/kelleygo/trojan-go/log"
 	"net/http"
 	"proxy/tunnel/config"
 	"proxy/tunnel/models"

@@ -2,10 +2,10 @@ package vpn
 
 import (
 	"bytes"
-	"dev.risinghf.com/go/framework/log"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/kelleygo/trojan-go/log"
 	"net/http"
 	"os"
 	"proxy/tunnel/config"
@@ -85,14 +85,12 @@ func SetupTunnel() error {
 	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.3
 	
 	// 提前判断是否调试模式，避免不必要的转换，http.ReadResponse.Header 将首字母大写，其余小写，即使服务端调试时正常
-	if log.GetLogLevel() == "debug" {
-		headers := make([]byte, 0)
-		buf := bytes.NewBuffer(headers)
-		// http.ReadResponse: Keys in the map are canonicalized (see CanonicalHeaderKey).
-		// https://ron-liu.medium.com/what-canonical-http-header-mean-in-golang-2e97f854316d
-		_ = resp.Header.Write(buf)
-		log.Debug(buf.String())
-	}
+	headers := make([]byte, 0)
+	buf := bytes.NewBuffer(headers)
+	// http.ReadResponse: Keys in the map are canonicalized (see CanonicalHeaderKey).
+	// https://ron-liu.medium.com/what-canonical-http-header-mean-in-golang-2e97f854316d
+	_ = resp.Header.Write(buf)
+	log.Debug(buf.String())
 	
 	cSess := session.Sess.NewConnSession(&resp.Header)
 	session.Sess.CSess = cSess
@@ -166,14 +164,12 @@ func SetupSystemProxy() error {
 	// https://datatracker.ietf.org/doc/html/draft-mavrogiannopoulos-openconnect-03#section-2.1.3
 	
 	// 提前判断是否调试模式，避免不必要的转换，http.ReadResponse.Header 将首字母大写，其余小写，即使服务端调试时正常
-	if log.GetLogLevel() == "debug" {
-		headers := make([]byte, 0)
-		buf := bytes.NewBuffer(headers)
-		// http.ReadResponse: Keys in the map are canonicalized (see CanonicalHeaderKey).
-		// https://ron-liu.medium.com/what-canonical-http-header-mean-in-golang-2e97f854316d
-		_ = resp.Header.Write(buf)
-		log.Debug(buf.String())
-	}
+	headers := make([]byte, 0)
+	buf := bytes.NewBuffer(headers)
+	// http.ReadResponse: Keys in the map are canonicalized (see CanonicalHeaderKey).
+	// https://ron-liu.medium.com/what-canonical-http-header-mean-in-golang-2e97f854316d
+	_ = resp.Header.Write(buf)
+	log.Debug(buf.String())
 	
 	cSess := session.Sess.NewConnSession(&resp.Header)
 	cSess.ServerAddress = strings.Split(config.Conn.RemoteAddr().String(), ":")[0]

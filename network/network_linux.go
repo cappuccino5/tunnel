@@ -1,12 +1,12 @@
 package network
 
 import (
-    "dev.risinghf.com/go/framework/log"
-    "fmt"
-    "github.com/vishvananda/netlink"
-    "net"
-    "os/exec"
-    "proxy/tunnel/config"
+	"fmt"
+	"github.com/kelleygo/trojan-go/log"
+	"github.com/vishvananda/netlink"
+	"net"
+	"os/exec"
+	"proxy/tunnel/config"
 )
 
 var (
@@ -63,7 +63,7 @@ func SetRoutes(ServerIP string, SplitInclude, SplitExclude *[]string) error {
 	}
 	for _, ipMask := range *SplitInclude {
 		dst, _ = netlink.ParseIPNet(IpMaskToCIDR(ipMask))
-		route = netlink.Route{LinkIndex: ifaceIndex, Dst: dst, Priority: 6}
+		route = netlink.Route{LinkIndex: ifaceIndex, Dst: dst, Priority: 1}
 		err = netlink.RouteAdd(&route)
 		if err != nil {
 			return routingError(dst)

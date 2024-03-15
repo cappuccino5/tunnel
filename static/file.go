@@ -1,8 +1,8 @@
 package static
 
 import (
-	"dev.risinghf.com/go/framework/log"
 	"embed"
+	"github.com/kelleygo/trojan-go/log"
 	"io"
 	"os"
 	"strings"
@@ -17,7 +17,7 @@ func init() {
 		log.Error(err)
 		return
 	}
-
+	
 	defer siteFile.Close()
 	// 读取文件内容
 	siteData, err := io.ReadAll(siteFile)
@@ -48,7 +48,7 @@ func write(filename string, content []byte) error {
 	if err != nil {
 		return err
 	}
-
+	
 	_, err = file.Write(content)
 	if err != nil {
 		return err

@@ -1,8 +1,8 @@
 package vpn
 
 import (
-	"dev.risinghf.com/go/framework/log"
 	"encoding/hex"
+	"github.com/kelleygo/trojan-go/log"
 	proto "proxy/tunnel/models"
 	"proxy/tunnel/network"
 	"proxy/tunnel/session"

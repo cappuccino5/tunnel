@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"dev.risinghf.com/go/framework/errors"
-	"dev.risinghf.com/go/framework/log"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"github.com/kelleygo/trojan-go/config"
+	"github.com/kelleygo/trojan-go/log"
 	"github.com/kelleygo/trojan-go/tunnel/freedom"
 	"github.com/kelleygo/trojan-go/tunnel/shadowsocks"
 	xtls "github.com/kelleygo/trojan-go/tunnel/tls"
@@ -154,7 +154,7 @@ func tplPost(typ int, path string, dtd *models.DTD) error {
 	log.Info("tplPost url:", conf.Prof.Scheme+conf.Prof.HostWithPort+path)
 	req, err := http.NewRequest("POST", conf.Prof.Scheme+conf.Prof.HostWithPort+path, &tplBuffer)
 	if err != nil {
-		log.WithFields(log.Fields{"url": conf.Prof.Scheme + conf.Prof.HostWithPort + path, "body": tplBuffer.String()}).Error(err)
+		log.Error("tplPost url:", conf.Prof.Scheme+conf.Prof.HostWithPort+path, err)
 		return err
 	}
 	req.Header = conf.Prof.HeaderParam
@@ -178,9 +178,7 @@ func tplPost(typ int, path string, dtd *models.DTD) error {
 			conf.Conn.Close()
 			return err
 		}
-		if log.GetLogLevel() == "debug" {
-			log.Debug(string(body))
-		}
+		log.Debug(string(body))
 		err = xml.Unmarshal(body, dtd)
 		if dtd.Type == "complete" {
 			// 兼容 ocserv
