@@ -12,8 +12,9 @@ CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat go build -o ./bin/tunnel
 # 打包linux AMD64 版本
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build  -o ./bin/tunnel-amd64  main.go
 
-
 # 打包linux ARM64 版本
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build  -o ./bin/tunnel-arm64 main.go
 
+# 打包linux ARM 版本
+CGO_ENABLED=0 GOOS=linux GOARCH=arm go build  -o ./bin/tunnel-arm main.go
 echo "编译完成"
